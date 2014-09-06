@@ -1,25 +1,23 @@
 require 'json'
 require 'net/https'
 require 'uri'
-
+require 'open-uri'
 #This class holds the methods for consuming the Whitepages API
 class Whitepages
 
   #Initialize the Whitepages class
   # * api_key - The API key obtained from the Whitpages Developer website
   def initialize(api_key)
-    api_version = "1.0"
+    api_version = "2.0"
     
     @api_key = api_key
-    @base_uri = "http://api.whitepages.com/"
-    @find_person_uri = @base_uri + "find_person/" + api_version + "/?"
-    @reverse_phone_uri = @base_uri + "reverse_phone/" + api_version + "/?"
-    @reverse_address_uri = @base_uri + "reverse_address/" + api_version + "/?"
+    @base_uri = "https://proapi.whitepages.com"
+    @find_person_uri = @base_uri     + "/" + api_version +  "/person.json" +  "?"
+    @reverse_phone_uri = @base_uri   + "/" + api_version +  "/phone.json" +  "?"
+    @reverse_address_uri = @base_uri + "/" + api_version +  "/location.json" +  "?"
     
     @uri = URI.parse(@base_uri)
 
-    @http = Net::HTTP.new(@uri.host, @uri.port)
-    @http.set_debug_output $stderr
   end
   
   #Retrieves contact information about a person, such as a telephone number and address
@@ -28,7 +26,7 @@ class Whitepages
   # * lastname - Last Name (*REQUIRED*)
   # * house - May take a range, in the form [start-end]
   # * apt - Apartment
-  # * street - Street
+  # * street_line_1 - Street
   # * city - City
   # * state - State
   # * zip - ZipCode/PostalCode
@@ -36,13 +34,8 @@ class Whitepages
   # * metro - Whether or not to expand the search to the metro area
   #More details may be found here: http://developer.whitepages.com/docs/Methods/find_person
   def find_person(options)
-    resp, data = @http.get(build_uri(options, "find_person"))
-    if resp.code== 200
-      return JSON.parse(data)
-    else
-      raise Exception,"code",resp.code
-    end
-
+    uri = build_uri(options, "find_person")
+    return proc(uri)
   end
 
   #Retrieves contact information about a telephone number
@@ -51,32 +44,33 @@ class Whitepages
   # * state - Two digit code for the state
   #More details may be found here: http://developer.whitepages.com/docs/Methods/reverse_phone
   def reverse_phone(options)  
-    resp, data = @http.get(build_uri(options, "reverse_phone"))
-
-    if resp.code== 200
-      return JSON.parse(data)
-    else
-      raise Exception,"code",resp.code
-    end
-
+    uri = build_uri(options, "reverse_phone")
+    return proc(uri)
   end
-  
+
+  def proc(uri)
+    stream = open(uri)
+    raise 'web service error' if (stream.status.first != '200')
+    data = stream.read    
+    return JSON.parse(data)
+  end
   #Retrieves contact information about the people at an address
   # * house - May take a range, in the form [start-end]
   # * apt - Apartment
-  # * street - Street (*REQUIRED*)
+  # * street_line_1 - Street (*REQUIRED*)
+  # * street_line_2 
   # * city - City
-  # * state - State
-  # * zip - ZipCode/PostalCode
+  # * state_code - State
+  # * postal_code - ZipCode/PostalCode
   # * areacode - AreaCode
   #More details may be found here: http://developer.whitepages.com/docs/Methods/reverse_address
   def reverse_address(options)
-    resp, data = @http.get(build_uri(options, "reverse_address"))
-    if resp.code== 200
-      return JSON.parse(data)
-    else
-      raise Exception,"code",resp.code
-    end
+    #https://proapi.whitepages.com/2.0/location.json?street_line_1=413%20E%20Lowe%20St&city=Seattle&state=WA&api_key=KEYVAL
+
+    uri = build_uri(options, "reverse_address")
+#    print uri
+    return proc(uri)
+
   end
   
   private 
@@ -94,11 +88,11 @@ class Whitepages
     
     options.each do |key,value|
       if value != nil
-        built_uri = built_uri + key + "=" + value.gsub(' ', '%20') + ";"
+        built_uri = built_uri + key + "=" + value.gsub(' ', '%20') + "&"
       end
     end
     
-    built_uri = built_uri + "api_key=" + @api_key + ";outputtype=JSON"
+    built_uri = built_uri + "api_key=" + @api_key 
     return built_uri
   end
     
