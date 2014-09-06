@@ -1,0 +1,4 @@
+class Key 
+  class << self ; attr_accessor :key ; end
+  self.key = 'XXXXXX' # your code goes here
+end

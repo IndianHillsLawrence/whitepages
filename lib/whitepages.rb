@@ -17,7 +17,9 @@ class Whitepages
     @reverse_address_uri = @base_uri + "reverse_address/" + api_version + "/?"
     
     @uri = URI.parse(@base_uri)
+
     @http = Net::HTTP.new(@uri.host, @uri.port)
+    @http.set_debug_output $stderr
   end
   
   #Retrieves contact information about a person, such as a telephone number and address
